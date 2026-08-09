@@ -151,10 +151,7 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
   </div>
   <nav class="hdr-tabs" id="hdr-tabs">
     <button class="htab htab-active" onclick="navTo('captacao')">⊞ Captação</button>
-    <button class="htab" onclick="navTo('aquecimento')">🔥 Aquecimento</button>
     <button class="htab" onclick="navTo('lembrete')">🔔 Lembrete</button>
-    <button class="htab" onclick="navTo('aulas')">🎓 Aulas</button>
-    <button class="htab" onclick="navTo('carrinho')">🛒 Carrinho</button>
     <button class="htab" onclick="navTo('planoreal')">📈 Planejado/Realizado</button>
     <button class="htab" onclick="navTo('resumo')">📋 Resumo diário</button>
   </nav>
@@ -179,18 +176,11 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
 <div class="app-content">
   <div class="sw" id="loading"><div class="sp"></div><p class="st">Carregando dados...</p></div>
   <nav class="hdr-tabs" id="subnav-captacao" style="display:none;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px"></nav>
-  <nav class="hdr-tabs" id="subnav-carrinho" style="display:none;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px"></nav>
   <div id="page-principal" class="page active"></div>
   <div id="page-anuncios"  class="page"></div>
   <div id="page-metricas"  class="page"></div>
   <div id="page-leads"     class="page"></div>
-  <div id="page-aquecimento" class="page"></div>
   <div id="page-lembrete"  class="page"></div>
-  <div id="page-aulas"     class="page"></div>
-  <div id="page-carrinho-principal" class="page"></div>
-  <div id="page-carrinho-fichas"    class="page"></div>
-  <div id="page-carrinho-vendas"    class="page"></div>
-  <div id="page-carrinho-anuncios"  class="page"></div>
   <div id="page-planoreal" class="page"></div>
   <div id="page-resumo"    class="page"></div>
 </div>
@@ -209,18 +199,16 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
        origem via UTM, dados demográficos)
      • Base GA4               → dados de página (Connect Rate / Tx conv Pg)
 
-   IMPORTANTE — 09/08/26: na planilha ORA AGO26 só existem, por enquanto, as
-   3 abas acima (Captação, lead, GA4). As abas de Aquecimento/Lembrete/Aulas/
-   Carrinho (fichas/vendas)/Contagem likes AINDA NÃO FORAM CRIADAS — os nomes
-   abaixo são um "melhor palpite" (mesmo padrão do OFRR) e precisam ser
-   conferidos/ajustados quando essas abas forem criadas na planilha. Detalhe
-   técnico: o endpoint gviz do Google NÃO retorna erro pra aba inexistente —
-   ele silenciosamente devolve a primeira aba da planilha (hoje, "Base Meta -
-   Captação"). Como essa aba está vazia (sem linhas), isso não causa problema
-   agora — mas quando o Meta Ads começar a alimentar essa aba, se o nome de
-   alguma aba abaixo estiver errado, a página daquela etapa pode aparecer com
-   dados errados (duplicados da Captação) em vez de vazia/erro. Reconferir os
-   nomes reais assim que cada aba for criada.
+   IMPORTANTE — 09/08/26: este lançamento (ORA AGO26) não tem etapas de
+   Aquecimento, Aulas nem Carrinho — só Captação e Lembrete. As páginas e o
+   código dessas etapas removidas (renderAquecimento/renderAulas/
+   renderCarrinho*) permanecem no arquivo, só não são mais navegáveis nem
+   buscam dados — se o lançamento vier a precisar delas, dá pra reativar
+   devolvendo os botões em #hdr-tabs, os <div class="page"> correspondentes
+   e o fetch da(s) aba(s) em loadData(). Detalhe técnico a lembrar se isso
+   acontecer: o endpoint gviz do Google NÃO retorna erro pra aba inexistente
+   — ele silenciosamente devolve a primeira aba da planilha — então sempre
+   conferir o nome exato da aba na planilha antes de reativar.
 
    Metas atualizadas conforme o "Resumo consolidado" combinado com o usuário
    — 09/08/26 (ver texto "ORA Jul26" usado como referência de metas/formato).
@@ -230,18 +218,7 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
 const SHEET_ID = "1owUIVlpUKrT2dyh-gsiMvtA2yxuKpd_ddaW-aBp3LcQ";
 const SHEET_META_NAME = "Base Meta - Captação";
 const SHEET_LEADS_NAME = "Base lead";
-// ⚠️ Abas abaixo ainda não existem na planilha (ver nota acima) — nomes por
-// enquanto seguem o mesmo padrão do OFRR; conferir quando forem criadas.
-const SHEET_AQUECIMENTO_NAME = "Base Meta - aquecimento";
 const SHEET_LEMBRETE_NAME = "Base Meta - lembrete";
-const SHEET_AULAS_NAME = "Base Meta - Aulas";
-// Fichas de interesse do Carrinho — mesmo modelo de outro projeto ("oro_jul26"),
-// replicado aqui: Tráfego (fichas de tráfego pago) + Orgânico/Disparo (somados
-// numa única categoria "orgânico", mesmo padrão do modelo original).
-const SHEET_CARRINHO_TRAFEGO_NAME = "Base fichas - Tráfego";
-const SHEET_CARRINHO_ORGANICO_NAME = "Base fichas - orgânico";
-const SHEET_CARRINHO_DISPARO_NAME = "Base fichas - disparo";
-const SHEET_CARRINHO_VENDAS_NAME = "Base vendas";
 // Dados de página (GA4) — usados pra Connect Rate e Tx conv Pg cadastro na
 // aba Métricas do Tráfego e no Resumo diário.
 const SHEET_GA4_NAME = "Base GA4";
@@ -1088,49 +1065,16 @@ async function loadData(){
   S.loading=false;
   render();
 
-  // Etapas Aquecimento/Lembrete/Aulas.
+  // Etapa Lembrete (única etapa além de Captação que existe neste
+  // lançamento — Aquecimento/Aulas/Carrinho foram removidos, ver nota em
+  // ── Navigation acima).
   (async()=>{
     try{
-      const [aquecimentoCsv, lembreteCsv, aulasCsv] = await Promise.all([
-        fetchSheetCSV(SHEET_AQUECIMENTO_NAME),
-        fetchSheetCSV(SHEET_LEMBRETE_NAME),
-        fetchSheetCSV(SHEET_AULAS_NAME),
-      ]);
-      S.aquecimentoRows = parseStageRows(parseRows(parseCSVText(aquecimentoCsv)));
+      const lembreteCsv = await fetchSheetCSV(SHEET_LEMBRETE_NAME);
       S.lembreteRows = parseStageRows(parseRows(parseCSVText(lembreteCsv)));
-      S.aulasRows = parseStageRows(parseRows(parseCSVText(aulasCsv)));
       render();
     }catch(e){
-      console.error("Erro ao carregar dados das etapas (Aquecimento/Lembrete/Aulas):",e);
-    }
-  })();
-
-  // Fichas + Vendas do Carrinho (a Vendas depende das Fichas já processadas,
-  // por isso fica encadeada dentro do mesmo bloco — mas o bloco inteiro roda
-  // à parte do resto).
-  (async()=>{
-    try{
-      const [trafCsv, orgCsv, dispCsv] = await Promise.all([
-        fetchSheetCSV(SHEET_CARRINHO_TRAFEGO_NAME),
-        fetchSheetCSV(SHEET_CARRINHO_ORGANICO_NAME),
-        fetchSheetCSV(SHEET_CARRINHO_DISPARO_NAME),
-      ]);
-      processCarrinhoFichas(
-        parseRows(parseCSVText(trafCsv)),
-        parseRows(parseCSVText(orgCsv)),
-        parseRows(parseCSVText(dispCsv)),
-      );
-      render();
-    }catch(e){
-      console.error("Erro ao carregar fichas do Carrinho (Tráfego/Orgânico/Disparo):",e);
-      return;
-    }
-    try{
-      const vendasCsv = await fetchSheetCSV(SHEET_CARRINHO_VENDAS_NAME);
-      processCarrinhoVendas(parseRows(parseCSVText(vendasCsv)));
-      render();
-    }catch(e){
-      console.error("Erro ao carregar vendas do Carrinho (Base vendas):",e);
+      console.error("Erro ao carregar dados da etapa Lembrete:",e);
     }
   })();
 
@@ -1359,11 +1303,15 @@ function getAdRows(start,end,selectedCamps){
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────
-// "captacao" e "carrinho" são as abas de topo com sub-abas — Captação:
-// Principal, Campanhas e anúncios, Métricas do Tráfego, Análise qualificação;
-// Carrinho: Principal, Fichas, Vendas, Campanhas/Anúncios. As demais
-// (Aquecimento, Lembrete, Aulas, Planejado/Realizado, Resumo diário) são
-// páginas únicas, sem segundo nível.
+// "captacao" é a única aba de topo com sub-abas: Principal, Campanhas e
+// anúncios, Métricas do Tráfego, Análise qualificação. As demais (Lembrete,
+// Planejado/Realizado, Resumo diário) são páginas únicas, sem segundo nível.
+// Aquecimento/Aulas/Carrinho foram removidos — essas etapas não existem
+// neste lançamento (ORA AGO26). O código dessas páginas (renderAquecimento,
+// renderAulas, renderCarrinho*) continua no arquivo, só não é mais acessível
+// pela navegação — se o lançamento vier a ter Carrinho/Aulas no futuro, dá
+// pra reativar devolvendo os botões em #hdr-tabs e os <div class="page">
+// correspondentes.
 function activePageId(){
   if(S.currentPage==="captacao")return "page-"+S.currentSubPage;
   if(S.currentPage==="carrinho")return "page-carrinho-"+S.carrinhoSubPage;
@@ -1457,7 +1405,7 @@ const SUB_TABS_CARRINHO=[
 function renderHeader(){
   const p=S.currentPage;
   document.querySelectorAll("#hdr-tabs .htab").forEach((btn,i)=>{
-    const ids=["captacao","aquecimento","lembrete","aulas","carrinho","planoreal","resumo"];
+    const ids=["captacao","lembrete","planoreal","resumo"];
     btn.classList.toggle("htab-active",ids[i]===p);
   });
   const subEl=document.getElementById("subnav-captacao");
@@ -1846,10 +1794,8 @@ function renderPrincipal(){
   const temp=S.principalTemp;
   const daily=getDaily(S.startDate,S.endDate,ch,temp);
   const pt=principalTotals(S.startDate,S.endDate,ch,temp);
-  const qm=qualityMetrics(S.startDate,S.endDate,ch,temp);
   const cplC=pt.cpl!=null?statusColor(pt.cpl,META_CPL,false):"var(--text-strong)";
   const chLabel={total:"Total",trafego:"Tráfego",organico:"Orgânico"}[ch];
-  const tempLabel={todos:"Todos",quente:"Quente",morno:"Morno",frio:"Frio"}[temp];
   const rowsCh=leadsForTemp(leadsForChannel(leadsInRange(S.startDate,S.endDate),ch),temp);
   const semUtmN=rowsCh.filter(l=>!l.hasUtm).length;
   const ga4PageRows=getGA4PageRows(S.startDate,S.endDate);
@@ -1865,46 +1811,24 @@ function renderPrincipal(){
   const investPlanoColor=plano.investimento>0?statusColor(pt.spend,plano.investimento,false):"var(--text-strong)";
   const leadsPlanoColor=plano.leads>0?statusColor(pt.leads,plano.leads,true):"var(--text-strong)";
 
-  // Faixa/quiz/Ramon/AD: sem meta confirmada pro ORA AGO26 ainda (ver nota em
-  // METAS_RESUMO) — cartões mostram só o número, sem cor/comparação de meta.
-  function faixaCard(lbl,val){
-    return kpiCard(lbl,fPctOrDash(val),val!=null?"sem meta definida":"sem resposta no período","var(--text-strong)");
-  }
-
   el.innerHTML=`
     <div class="hdr" style="margin-bottom:6px">
       <div>
         <div class="hdr-title">ORA — Captação de Leads</div>
-        <div class="hdr-sub">atualizado em: ${S.updated||"—"}${daily.length>0?` · ${daily.length} dias no período`:""} · canal: ${chLabel} · temperatura: ${tempLabel}</div>
+        <div class="hdr-sub">atualizado em: ${S.updated||"—"}${daily.length>0?` · ${daily.length} dias no período`:""} · canal: ${chLabel}</div>
       </div>
       <div style="display:flex;align-items:center;gap:16px">${statusLegend()}</div>
     </div>
     <div style="margin-bottom:14px;display:flex;flex-direction:column;gap:8px">
       <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:var(--hint);min-width:76px">Canal:</span>${channelToggle()}</div>
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:var(--hint);min-width:76px">Temperatura:</span>${tempToggle()}</div>
     </div>
     ${S.error?`<div class="err">⚠️ ${S.error}</div>`:""}
 
-    <div class="g3" style="margin-bottom:13px">
+    <div class="g3" style="margin-bottom:16px">
       ${kpiCard("Investimento",fBRL(pt.spend),ch==="organico"?"sem tráfego pago":`planejado até hoje: ${fBRL(plano.investimento)}`,ch==="organico"?"var(--text-strong)":investPlanoColor,false,ch==="organico"?null:pt.spend,plano.investimento>0?plano.investimento:null,false)}
       ${kpiCard("Leads captados",pt.leads.toLocaleString("pt-BR"),`atingimento da meta: ${pctAtingimento!=null?fPct(pctAtingimento):"—"}${plano.leads>0?` (${pt.leads}/${plano.leads} planejados)`:""}${ch!=="organico"&&semUtmN>0?` · ${semUtmN} sem UTM`:""}`,leadsPlanoColor,false,plano.leads>0?pt.leads:null,plano.leads>0?plano.leads:null,true)}
       ${kpiCard("Custo/lead",pt.cpl!=null?fBRL(pt.cpl):"—",pt.cpl!=null?`meta ${fBRL(META_CPL)}`:"não aplicável",cplC,false,pt.cpl,META_CPL,false)}
     </div>
-
-    <div class="g5" style="margin-bottom:13px">
-      ${faixaCard("% Faixa A",qm.faixaA)}
-      ${faixaCard("% Faixa B",qm.faixaB)}
-      ${faixaCard("% Faixa C",qm.faixaC)}
-      ${faixaCard("% Faixa D",qm.faixaD)}
-      ${kpiCard("% resposta da pesquisa",fPctOrDash(qm.quizPct),`${qm.quizRespondidoN} de ${qm.total} · sem meta definida`,"var(--text-strong)")}
-    </div>
-
-    <div class="g2" style="margin-bottom:16px">
-      ${kpiCard("% conhece o Ramon",fPctOrDash(qm.ramonPct),`${qm.ramonN} respostas · sem meta definida`,"var(--text-strong)")}
-      ${kpiCard("% conhece a Aliança Divergente",fPctOrDash(qm.adPct),`${qm.adN} respostas · sem meta definida`,"var(--text-strong)")}
-    </div>
-
-    <div class="section-lbl" style="margin-top:0">% Faixa A-D e conhece Ramon/AD: calculadas só sobre quem respondeu cada pergunta (não-resposta fica fora do denominador). Sem meta definida pro ORA AGO26 ainda.</div>
 
     ${ch!=="organico"?`
     <div class="cc" style="margin-bottom:12px;position:relative">
@@ -1932,26 +1856,6 @@ function renderPrincipal(){
       </div>
       <div style="position:relative"><canvas id="c-leads"></canvas><div class="tip" id="t-leads"></div></div>
       ${S.showGapVolume?`<div style="font-size:10px;color:var(--hint);margin-top:8px">GAP % = (leads reportados pelo gerenciador do Meta − leads reais da planilha) ÷ leads reais. Positivo = gerenciador reportou mais leads do que realmente entraram na planilha.</div>`:""}
-    </div>
-
-    <div class="cc" style="position:relative;margin-bottom:12px">
-      <div class="ch">
-        <span class="ct">% Faixa por dia — ${chLabel} · ${tempLabel}</span>
-        <div class="lg">${faixaSelButtons()}</div>
-      </div>
-      <div style="position:relative"><canvas id="c-faixa"></canvas><div class="tip" id="t-faixa"></div></div>
-      ${Object.values(S.faixaSel).every(v=>!v)?`<div style="font-size:10px;color:var(--hint);margin-top:8px">Selecione ao menos uma faixa pra ver a linha no gráfico.</div>`:""}
-    </div>
-
-    <div class="cc" style="position:relative">
-      <div class="ch">
-        <span class="ct">% Conhece Ramon / Aliança Divergente por dia — ${chLabel} · ${tempLabel}</span>
-        <div class="lg">
-          <span class="li"><span class="ll" style="background:${CHART_RAMON}"></span>Conhece Ramon</span>
-          <span class="li"><span class="ll" style="background:${CHART_AD}"></span>Conhece AD</span>
-        </div>
-      </div>
-      <div style="position:relative"><canvas id="c-conhece"></canvas><div class="tip" id="t-conhece"></div></div>
     </div>
 
     <div class="section-lbl">Página (GA4 · ${fDateBR(S.startDate)} a ${fDateBR(S.endDate)})</div>
@@ -1999,21 +1903,6 @@ function renderPrincipal(){
     if(S.showGapVolume)tipLines.push({name:"GAP %",color:CHART_GAP,key:"gapPct",fmt:v=>fPct(v)});
     setupTip("c-leads","t-leads",daily,tipLines,40,S.showGapVolume?50:12);
 
-    const dailyQ=getDailyQuality(S.startDate,S.endDate,ch,temp);
-    const box3=document.getElementById("c-faixa")?.parentElement;
-    const faixaKeys={A:"faixaA",B:"faixaB",C:"faixaC",D:"faixaD"};
-    const faixaSeries=["A","B","C","D"].filter(l=>S.faixaSel[l]).map(l=>({key:faixaKeys[l],color:CHART_FAIXA[l]}));
-    if(box3)drawMultiLine("c-faixa",dailyQ,faixaSeries,box3.clientWidth,220,true);
-    setupTip("c-faixa","t-faixa",dailyQ,["A","B","C","D"].filter(l=>S.faixaSel[l]).map(l=>
-      ({name:"Faixa "+l,color:CHART_FAIXA[l],key:faixaKeys[l],fmt:fPctOrDash})),36,12);
-
-    const box4=document.getElementById("c-conhece")?.parentElement;
-    if(box4)drawMultiLine("c-conhece",dailyQ,[
-      {key:"ramonPct",color:CHART_RAMON},
-      {key:"adPct",color:CHART_AD}],box4.clientWidth,220);
-    setupTip("c-conhece","t-conhece",dailyQ,[
-      {name:"Conhece Ramon",color:CHART_RAMON,key:"ramonPct",fmt:fPctOrDash},
-      {name:"Conhece AD",color:CHART_AD,key:"adPct",fmt:fPctOrDash}],36,12);
   });
 }
 
@@ -2459,9 +2348,7 @@ ${textBlock("Hoje",hoje,fDateBR(today),ch_,planForDate(today),null,true)}`;
       </div>
     </div>
 
-    ${stageResumoSection("🔥 Resumo Aquecimento",`dados carregados: ${S.aquecimentoRows.length} linha(s)`,aquecimentoResumoHtml(),"aquecimento")}
     ${stageResumoSection("🔔 Resumo Lembrete",`dados carregados: ${S.lembreteRows.length} linha(s)`,lembreteResumoHtml(),"lembrete")}
-    ${stageResumoSection("🎓 Resumo Aulas","3 aulas · identificadas pelo nome da campanha",aulasResumoHtml(),"aulas")}
 
     <div class="foot">ORA · Captação · dados locais (CSV embutido)</div>`;
   el._resumoText=resumoText;
@@ -2634,7 +2521,6 @@ function drawMetricBar(id,data,key,color,metaVal,cssW,cssH,fmt){
 function renderMetricasTrafego(){
   const el=document.getElementById("page-metricas");if(!el)return;
   const temp=S.metricasTemp;
-  const tempLabel={todos:"Todas",quente:"Quente",morno:"Morno",frio:"Frio"}[temp];
   const today=todayISO();
   const y1=nDaysAgoISO(1), y3=nDaysAgoISO(3);
   const hoje=trafficMetrics(today,today,temp);
@@ -2661,11 +2547,10 @@ function renderMetricasTrafego(){
     <div class="hdr" style="margin-bottom:6px">
       <div>
         <div class="hdr-title">Métricas do Tráfego</div>
-        <div class="hdr-sub">atualizado em: ${S.updated||"—"} · temperatura: ${tempLabel}</div>
+        <div class="hdr-sub">atualizado em: ${S.updated||"—"}</div>
       </div>
       <div style="display:flex;align-items:center;gap:16px">${statusLegend()}</div>
     </div>
-    <div style="margin-bottom:14px">${metricasTempToggle()}</div>
     ${S.error?`<div class="err">⚠️ ${S.error}</div>`:""}
 
     <div class="section-lbl" style="margin-top:0">Hoje — ${fDateBR(today)}</div>
@@ -4045,12 +3930,11 @@ function renderPlanoReal(){
   // (via campaignStage), não do gasto total da Base Meta no período do plano
   // — senão o investimento de Captação vazaria pro "realizado" de Lembrete
   // etc. só por coincidência de data.
+  // Só Captação e Lembrete existem neste lançamento (ver nota no topo do
+  // arquivo) — Aquecimento/Aulas/Carrinho removidos.
   const etapas=[
     {nome:"Captação",plan:totalInvestPlan,real:totalSpendForStage("Captação")},
-    {nome:"Aquecimento",plan:PLANO_AQUECIMENTO.reduce((a,p)=>a+p.investimento,0)||PLANO_AQUECIMENTO_TOTAL,real:totalSpendForStage("Aquecimento")},
     {nome:"Lembrete",plan:PLANO_LEMBRETE.reduce((a,p)=>a+p.investimento,0),real:totalSpendForStage("Lembrete")},
-    {nome:"Aulas",plan:PLANO_AULAS.reduce((a,p)=>a+p.investimento,0),real:totalSpendForStage("Aulas")},
-    {nome:"Carrinho",plan:PLANO_CARRINHO.reduce((a,p)=>a+p.investimento,0),real:totalSpendForStage("Carrinho")},
   ];
   const etapasTotalPlan=etapas.reduce((a,e)=>a+e.plan,0);
   const etapasTotalReal=etapas.reduce((a,e)=>a+e.real,0);
@@ -4181,10 +4065,7 @@ function renderPlanoReal(){
       </div>
     </div>
 
-    ${stageTable("Aquecimento","Aquecimento",PLANO_AQUECIMENTO)}
     ${stageTable("Lembrete","Lembrete",PLANO_LEMBRETE)}
-    ${stageTable("Aulas","Aulas",PLANO_AULAS)}
-    ${stageTable("Carrinho","Carrinho",PLANO_CARRINHO)}
 
     <div class="foot">ORA · Captação · dados locais (CSV embutido) + planejamento manual</div>`;
 }
@@ -4202,15 +4083,7 @@ function render(){
     else if(S.currentSubPage==="metricas")renderMetricasTrafego();
     else if(S.currentSubPage==="leads")renderLeads();
   }
-  else if(S.currentPage==="aquecimento")renderAquecimento();
   else if(S.currentPage==="lembrete")renderLembrete();
-  else if(S.currentPage==="aulas")renderAulas();
-  else if(S.currentPage==="carrinho"){
-    if(S.carrinhoSubPage==="principal")renderCarrinhoPrincipal();
-    else if(S.carrinhoSubPage==="fichas")renderCarrinhoFichas();
-    else if(S.carrinhoSubPage==="vendas")renderCarrinhoVendas();
-    else if(S.carrinhoSubPage==="anuncios")renderCarrinhoAnuncios();
-  }
   else if(S.currentPage==="planoreal")renderPlanoReal();
   else if(S.currentPage==="resumo")renderResumo();
 }
