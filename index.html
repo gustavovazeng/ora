@@ -179,7 +179,6 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
   <div id="page-principal" class="page active"></div>
   <div id="page-anuncios"  class="page"></div>
   <div id="page-metricas"  class="page"></div>
-  <div id="page-leads"     class="page"></div>
   <div id="page-lembrete"  class="page"></div>
   <div id="page-planoreal" class="page"></div>
   <div id="page-resumo"    class="page"></div>
@@ -373,6 +372,7 @@ const CHART_GAP  = "#f87171";
 const CHART_FAIXA = {A:"#34d399",B:"#60a5fa",C:"#fbbf24",D:"#f87171"};
 const CHART_RAMON = "#60a5fa";
 const CHART_AD    = "#a78bfa";
+const CHART_ORG   = "#a78bfa"; // Volume orgânico (aba Principal)
 
 // ── State ─────────────────────────────────────────────────────────────────
 const S = {
@@ -420,8 +420,8 @@ const S = {
   metricasTemp:"todos",      // filtro de temperatura exclusivo da aba Métricas do Tráfego
   showGapVolume:false,       // liga/desliga a linha de GAP no gráfico "Volume de leads"
   faixaSel:{A:true,B:true,C:true,D:true}, // quais faixas aparecem no gráfico "% Faixa por dia"
-  currentPage:"captacao",     // "captacao" | "aquecimento" | "lembrete" | "aulas" | "carrinho" | "planoreal" | "resumo"
-  currentSubPage:"principal", // só usado quando currentPage==="captacao": "principal" | "anuncios" | "metricas" | "leads"
+  currentPage:"captacao",     // "captacao" | "lembrete" | "planoreal" | "resumo"
+  currentSubPage:"principal", // só usado quando currentPage==="captacao": "principal" | "anuncios" | "metricas"
   updated:null,
   loading:true,
   error:null,
@@ -1394,7 +1394,6 @@ const SUB_TABS_CAPTACAO=[
   ["principal","⊞ Principal"],
   ["anuncios","◈ Campanhas e anúncios"],
   ["metricas","📶 Métricas do Tráfego"],
-  ["leads","🎯 Análise qualificação"],
 ];
 const SUB_TABS_CARRINHO=[
   ["principal","⊞ Principal"],
@@ -1793,6 +1792,9 @@ function renderPrincipal(){
   const ch=S.principalChannel;
   const temp=S.principalTemp;
   const daily=getDaily(S.startDate,S.endDate,ch,temp);
+  // Volume orgânico: sempre visível na Principal, independente do canal
+  // selecionado no toggle acima (que filtra os outros cartões/gráficos).
+  const dailyOrg=getDaily(S.startDate,S.endDate,"organico",temp);
   const pt=principalTotals(S.startDate,S.endDate,ch,temp);
   const cplC=pt.cpl!=null?statusColor(pt.cpl,META_CPL,false):"var(--text-strong)";
   const chLabel={total:"Total",trafego:"Tráfego",organico:"Orgânico"}[ch];
@@ -1858,6 +1860,16 @@ function renderPrincipal(){
       ${S.showGapVolume?`<div style="font-size:10px;color:var(--hint);margin-top:8px">GAP % = (leads reportados pelo gerenciador do Meta − leads reais da planilha) ÷ leads reais. Positivo = gerenciador reportou mais leads do que realmente entraram na planilha.</div>`:""}
     </div>
 
+    <div class="cc" style="position:relative;margin-bottom:12px">
+      <div class="ch">
+        <span class="ct">Volume de leads — Orgânico</span>
+        <div class="lg">
+          <span class="li"><span class="ld" style="background:${CHART_ORG}"></span>Leads/dia (orgânico)</span>
+        </div>
+      </div>
+      <div style="position:relative"><canvas id="c-leads-org"></canvas><div class="tip" id="t-leads-org"></div></div>
+    </div>
+
     <div class="section-lbl">Página (GA4 · ${fDateBR(S.startDate)} a ${fDateBR(S.endDate)})</div>
     <div class="cc" style="padding:0;overflow:hidden;margin-bottom:6px">
       <div style="overflow-x:auto">
@@ -1903,6 +1915,9 @@ function renderPrincipal(){
     if(S.showGapVolume)tipLines.push({name:"GAP %",color:CHART_GAP,key:"gapPct",fmt:v=>fPct(v)});
     setupTip("c-leads","t-leads",daily,tipLines,40,S.showGapVolume?50:12);
 
+    const box5=document.getElementById("c-leads-org")?.parentElement;
+    if(box5)drawBarWithGap("c-leads-org",dailyOrg,"leads","gapPct",CHART_ORG,CHART_GAP,box5.clientWidth,200,false);
+    setupTip("c-leads-org","t-leads-org",dailyOrg,[{name:"Leads orgânico",color:CHART_ORG,key:"leads",fmt:v=>String(v)}],40,12);
   });
 }
 
@@ -4081,7 +4096,6 @@ function render(){
     if(S.currentSubPage==="principal")renderPrincipal();
     else if(S.currentSubPage==="anuncios")renderAnuncios();
     else if(S.currentSubPage==="metricas")renderMetricasTrafego();
-    else if(S.currentSubPage==="leads")renderLeads();
   }
   else if(S.currentPage==="lembrete")renderLembrete();
   else if(S.currentPage==="planoreal")renderPlanoReal();
