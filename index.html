@@ -573,15 +573,19 @@ function parseStageRows(rowsRaw){
 
 // ── Attribution helpers (UTM → anúncio/campanha do Meta Ads) ───────────────
 // Padrão de UTM do Meta Ads exportado neste funil:
-//   utm_medium  = "{nome campanha}id{campaign_id}"
-//   utm_content = "{nome anúncio}id{ad_id}"
-//   utm_term    = "{nome conjunto}id{adset_id}"
+//   utm_medium  = "{nome campanha}_id_{campaign_id}"  (ou "...id{id}" sem "_",
+//                 formato usado em lançamentos anteriores — ambos suportados)
+//   utm_content = "{nome anúncio}_id_{ad_id}"
+//   utm_term    = "{nome conjunto}_id_{adset_id}"
+// O ORA AGO26 usa "_id_" (com underscore dos dois lados) — ex.:
+// "ora_ago26_01-lead-adv001_id_120250856612160364". O "_?" opcional em volta
+// de "id" cobre os dois formatos sem quebrar lançamentos antigos.
 function extractIdSuffix(s){
-  const m=String(s||"").match(/id(\d{10,})$/);
+  const m=String(s||"").match(/_?id_?(\d{10,})$/);
   return m?m[1]:null;
 }
 function extractNamePrefix(s){
-  const m=String(s||"").match(/^(.+?)id\d{10,}$/);
+  const m=String(s||"").match(/^(.+?)_?id_?\d{10,}$/);
   return m?m[1]:(s||null);
 }
 // Temperatura do público vem no NOME DA CAMPANHA (ex.: "...-conversao-quente-...",
@@ -1304,8 +1308,8 @@ function getAdRows(start,end,selectedCamps){
 
 // ── Navigation ────────────────────────────────────────────────────────────
 // "captacao" é a única aba de topo com sub-abas: Principal, Campanhas e
-// anúncios, Métricas do Tráfego, Análise qualificação. As demais (Lembrete,
-// Planejado/Realizado, Resumo diário) são páginas únicas, sem segundo nível.
+// anúncios, Métricas do Tráfego. As demais (Lembrete, Planejado/Realizado,
+// Resumo diário) são páginas únicas, sem segundo nível.
 // Aquecimento/Aulas/Carrinho foram removidos — essas etapas não existem
 // neste lançamento (ORA AGO26). O código dessas páginas (renderAquecimento,
 // renderAulas, renderCarrinho*) continua no arquivo, só não é mais acessível
@@ -1937,12 +1941,6 @@ function adResumoBlock(a){
   lines.push(`Leads:\t${a.leads}`);
   lines.push(`Custo/lead:\t${a.leads>0?fBRL(a.cpl):"—"}`);
   lines.push(``);
-  lines.push(`Tx Faixa A:\t${fPctOrDash(a.faixaA)}`);
-  lines.push(`Tx Faixa B:\t${fPctOrDash(a.faixaB)}`);
-  lines.push(`Tx Faixa C:\t${fPctOrDash(a.faixaC)}`);
-  lines.push(`Tx Faixa D:\t${fPctOrDash(a.faixaD)}`);
-  lines.push(`% resposta da pesquisa:\t${fPctOrDash(a.quizPct)}`);
-  lines.push(``);
   lines.push(`CPM:\t${fBRL(a.cpm)}`);
   lines.push(`CPC:\t${fBRL(a.cpc)}`);
   lines.push(`CTR:\t${fPct(a.ctr)}`);
@@ -2022,17 +2020,12 @@ function renderAnuncios(){
           ${thC("spend","Investimento",true)}
           ${thC("leads","Leads",true)}
           ${thC("cpl","Custo/lead",true)}
-          ${thC("faixaA","Tx Faixa A",true)}
-          ${thC("faixaB","Tx Faixa B",true)}
-          ${thC("faixaC","Tx Faixa C",true)}
-          ${thC("faixaD","Tx Faixa D",true)}
-          ${thC("quizPct","% resp. pesquisa",true)}
           ${thC("cpm","CPM",true)}
           ${thC("cpc","CPC",true)}
           ${thC("ctr","CTR",true)}
         </tr></thead>
         <tbody>
-          ${sortedCamps.length===0?`<tr><td colspan="13" style="text-align:center;color:var(--hint);padding:20px">Sem dados de campanhas no período</td></tr>`:
+          ${sortedCamps.length===0?`<tr><td colspan="8" style="text-align:center;color:var(--hint);padding:20px">Sem dados de campanhas no período</td></tr>`:
           sortedCamps.map(c=>{
             const sel=S.selectedCamps.has(c.campName);
             return `<tr onclick="toggleCamp('${escName(c.campName)}')" style="cursor:pointer;background:${sel?"rgba(16,185,129,.1)":"transparent"}">
@@ -2041,11 +2034,6 @@ function renderAnuncios(){
               <td class="mono" style="text-align:right">${fBRL(c.spend)}</td>
               <td class="mono" style="text-align:right">${c.leads}</td>
               <td style="text-align:right;color:${c.cpl>0?statusColor(c.cpl,META_CPL,false):"var(--muted)"}">${c.cpl>0?fBRL(c.cpl):"—"}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(c.faixaA)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(c.faixaB)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(c.faixaC)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(c.faixaD)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(c.quizPct)}</td>
               <td class="mono" style="text-align:right">${fBRL(c.cpm)}</td>
               <td class="mono" style="text-align:right">${fBRL(c.cpc)}</td>
               <td class="mono" style="text-align:right">${fPct(c.ctr)}</td>
@@ -2073,18 +2061,13 @@ function renderAnuncios(){
           ${thC("spend","Investimento",false)}
           ${thC("leads","Leads",false)}
           ${thC("cpl","Custo/lead",false)}
-          ${thC("faixaA","Tx Faixa A",false)}
-          ${thC("faixaB","Tx Faixa B",false)}
-          ${thC("faixaC","Tx Faixa C",false)}
-          ${thC("faixaD","Tx Faixa D",false)}
-          ${thC("quizPct","% resp. pesquisa",false)}
           ${thC("cpm","CPM",false)}
           ${thC("cpc","CPC",false)}
           ${thC("ctr","CTR",false)}
           <th></th>
         </tr></thead>
         <tbody>
-          ${sortedAds.length===0?`<tr><td colspan="14" style="text-align:center;color:var(--hint);padding:20px">Sem dados de anúncios no período</td></tr>`:
+          ${sortedAds.length===0?`<tr><td colspan="9" style="text-align:center;color:var(--hint);padding:20px">Sem dados de anúncios no período</td></tr>`:
           sortedAds.map(a=>{
             const sel=S.selectedAds.has(a.adName);
             return `<tr onclick="toggleAd('${escName(a.adName)}')" style="cursor:pointer;background:${sel?"rgba(16,185,129,.1)":"transparent"}">
@@ -2093,11 +2076,6 @@ function renderAnuncios(){
               <td class="mono" style="text-align:right">${fBRL(a.spend)}</td>
               <td class="mono" style="text-align:right">${a.leads}</td>
               <td style="text-align:right;color:${a.cpl>0?statusColor(a.cpl,META_CPL,false):"var(--muted)"}">${a.cpl>0?fBRL(a.cpl):"—"}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(a.faixaA)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(a.faixaB)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(a.faixaC)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(a.faixaD)}</td>
-              <td class="mono" style="text-align:right">${fPctOrDash(a.quizPct)}</td>
               <td class="mono" style="text-align:right">${fBRL(a.cpm)}</td>
               <td class="mono" style="text-align:right">${fBRL(a.cpc)}</td>
               <td class="mono" style="text-align:right">${fPct(a.ctr)}</td>
