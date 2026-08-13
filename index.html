@@ -1154,8 +1154,12 @@ function getDaily(start,end,channel="total",temp="todos"){
     // reais da planilha, relativa aos leads reais. Positivo = Meta reportou
     // mais leads do que realmente caíram na planilha (duplicidade/atraso etc).
     const gapPct=leads>0?((actionLeads-leads)/leads)*100:null;
+    // Custo/lead SEMPRE só sobre leads de Tráfego (único canal com custo
+    // associado) — independe do canal selecionado no toggle, senão misturar
+    // leads orgânicos (de graça) no denominador dilui o CPL artificialmente.
+    const leadsTrafego=channel==="organico"?0:leadsForTemp(leadsForChannel(dayLeadsAll,"trafego"),temp).length;
     return{date,label:fDate(date),spend,leads,actionLeads,gapPct,
-      cpl:leads>0?spend/leads:0};
+      cpl:(spend>0&&leadsTrafego>0)?spend/leadsTrafego:0};
   });
 }
 // Séries diárias de qualidade (faixa/quiz/conhece Ramon-AD), % sempre sobre
@@ -1182,7 +1186,11 @@ function principalTotals(start,end,channel,temp="todos"){
   const rows=leadsForTemp(leadsForChannel(leadsInRange(start,end),channel),temp);
   const leads=rows.length;
   const spend=channel==="organico"?0:m.spend;
-  const cpl=(spend>0&&leads>0)?spend/leads:null;
+  // Custo/lead SEMPRE só sobre leads de Tráfego (único canal com custo
+  // associado) — mesmo com o canal "Total" selecionado no toggle, senão
+  // misturar leads orgânicos (de graça) no denominador dilui o CPL.
+  const leadsTrafego=channel==="organico"?0:leadsForTemp(leadsForChannel(leadsInRange(start,end),"trafego"),temp).length;
+  const cpl=(m.spend>0&&leadsTrafego>0)?m.spend/leadsTrafego:null;
   return{spend,leads,cpl,clicks:m.clicks,impressions:m.impressions,actionLeads:m.actionLeads};
 }
 // % de faixa/quiz/conhece-Ramon/conhece-AD — sempre sobre quem respondeu
@@ -1800,8 +1808,10 @@ function renderPrincipal(){
   const ch=S.principalChannel;
   const temp=S.principalTemp;
   const daily=getDaily(S.startDate,S.endDate,ch,temp);
-  // Volume orgânico: sempre visível na Principal, independente do canal
-  // selecionado no toggle acima (que filtra os outros cartões/gráficos).
+  // Volume de leads — Tráfego/Orgânico: sempre visíveis na Principal, cada
+  // um fixo no seu canal, independente do canal selecionado no toggle acima
+  // (que filtra só os cartões e o gráfico de Investimento × Custo/lead).
+  const dailyTraf=getDaily(S.startDate,S.endDate,"trafego",temp);
   const dailyOrg=getDaily(S.startDate,S.endDate,"organico",temp);
   const pt=principalTotals(S.startDate,S.endDate,ch,temp);
   const cplC=pt.cpl!=null?statusColor(pt.cpl,META_CPL,false):"var(--text-strong)";
@@ -1854,7 +1864,7 @@ function renderPrincipal(){
     </div>`:""}
     <div class="cc" style="position:relative;margin-bottom:12px">
       <div class="ch">
-        <span class="ct">Volume de leads</span>
+        <span class="ct">Volume de leads — Tráfego</span>
         <div class="lg">
           <span class="li"><span class="ld" style="background:${CHART_LEAD}"></span>Leads/dia</span>
           ${S.showGapVolume?`<span class="li"><span class="ll" style="background:${CHART_GAP}"></span>GAP % (gerenciador × planilha)</span>`:""}
@@ -1864,7 +1874,7 @@ function renderPrincipal(){
           </button>
         </div>
       </div>
-      <div style="position:relative"><canvas id="c-leads"></canvas><div class="tip" id="t-leads"></div></div>
+      <div style="position:relative"><canvas id="c-leads-traf"></canvas><div class="tip" id="t-leads-traf"></div></div>
       ${S.showGapVolume?`<div style="font-size:10px;color:var(--hint);margin-top:8px">GAP % = (leads reportados pelo gerenciador do Meta − leads reais da planilha) ÷ leads reais. Positivo = gerenciador reportou mais leads do que realmente entraram na planilha.</div>`:""}
     </div>
 
@@ -1917,11 +1927,11 @@ function renderPrincipal(){
         {name:"Investimento",color:CHART_INV,key:"spend",fmt:fBRL},
         {name:"Custo/lead",color:CHART_CPL,key:"cpl",fmt:fBRL}]);
     }
-    const box2=document.getElementById("c-leads")?.parentElement;
-    if(box2)drawBarWithGap("c-leads",daily,"leads","gapPct",CHART_LEAD,CHART_GAP,box2.clientWidth,200,S.showGapVolume);
+    const box2=document.getElementById("c-leads-traf")?.parentElement;
+    if(box2)drawBarWithGap("c-leads-traf",dailyTraf,"leads","gapPct",CHART_LEAD,CHART_GAP,box2.clientWidth,200,S.showGapVolume);
     const tipLines=[{name:"Leads",color:CHART_LEAD,key:"leads",fmt:v=>String(v)}];
     if(S.showGapVolume)tipLines.push({name:"GAP %",color:CHART_GAP,key:"gapPct",fmt:v=>fPct(v)});
-    setupTip("c-leads","t-leads",daily,tipLines,40,S.showGapVolume?50:12);
+    setupTip("c-leads-traf","t-leads-traf",dailyTraf,tipLines,40,S.showGapVolume?50:12);
 
     const box5=document.getElementById("c-leads-org")?.parentElement;
     if(box5)drawBarWithGap("c-leads-org",dailyOrg,"leads","gapPct",CHART_ORG,CHART_GAP,box5.clientWidth,200,false);
@@ -2388,14 +2398,17 @@ function copyResumo(){
 
 // ── Render: Métricas do Tráfego (placeholder — conteúdo a definir) ─────────
 // Métricas de tráfego (CPC/CTR/CPM/Tx Pág→Cadastro/Connect Rate), filtráveis
-// só por temperatura (extraída do nome da campanha) — não tem filtro de canal
-// porque é tudo tráfego pago (a única fonte de investimento na Base Meta).
+// só por temperatura (extraída do nome da campanha). O investimento (Base
+// Meta) é só de tráfego pago mesmo, mas a Base leads tem tráfego E orgânico
+// misturados — por isso "leads" (usado nos outros cálculos) inclui os dois,
+// enquanto o CPL usa só leadsTrafego (não dá pra dividir gasto pago por
+// leads que não custaram nada).
 function trafficMetrics(start,end,temp){
   const m=sumMetaRows(metaRowsFiltered(start,end,temp));
   const leadsRowsT=leadsForTemp(leadsInRange(start,end),temp);
   const leads=leadsRowsT.length;
   const leadsTrafego=leadsForChannel(leadsRowsT,"trafego").length;
-  const cpl=leads>0?m.spend/leads:null;
+  const cpl=leadsTrafego>0?m.spend/leadsTrafego:null;
   const cpc=m.clicks>0?m.spend/m.clicks:null;
   const ctr=m.impressions>0?(m.clicks/m.impressions)*100:null;
   const cpm=m.impressions>0?(m.spend/m.impressions)*1000:null;
