@@ -1004,20 +1004,24 @@ async function loadData(){
       if(!campName)campName="(sem atribuição)";
 
       // ── Canal (Tráfego × Orgânico) ──────────────────────────────────────
-      // Critério pelo utm_source:
-      //  • começa com "FBAds"  → Tráfego (Meta Ads, com UTM reconhecida)
-      //  • vazio/em branco     → Tráfego sem UTM (ainda é tráfego pago — só
-      //                          não veio com o parâmetro, por falha de
-      //                          tracking; não é orgânico)
-      //  • qualquer outro valor → Orgânico (fonte com nome próprio, ainda não
-      //                          vista nesta base — ex.: disparo/lista/bio)
-      // Início do lançamento ORA AGO26 (09/08/26): a base ainda não tem
-      // nenhuma linha — "organico" fica em 0 até aparecer um utm_source
-      // de fato orgânico nos dados reais.
+      // Critério antigo (só utm_source vazio/em branco = Tráfego) estava
+      // classificando lead orgânico como Tráfego — nos dados reais do ORA
+      // AGO26, lead orgânico vem com utm_source VAZIO (mesmo critério que
+      // antes achava que era "tráfego sem UTM"), então isso inflava o
+      // Tráfego. Corrigido: a própria coluna "temperature_name" da planilha
+      // já vem com o valor literal "Orgânico" pros leads orgânicos (e
+      // "Frio"/"Morno"/"Quente" pros de tráfego pago) — confirmado nos dados
+      // reais em 13/08/26 (o "path" também bate: "/org" pro orgânico, "/f"
+      // pro tráfego, mas temperature_name é o sinal mais direto). Fica como
+      // critério principal; cai pro critério antigo (utm_source) só se essa
+      // coluna vier vazia — robustez pra caso ela pare de ser preenchida.
       const platformName=(r["platform_name"]||"").trim();
       const utmSourceRaw=(r["utm_source"]||"").trim();
+      const tempRaw=(r["temperature_name"]||"").trim();
       const hasUtm=utmSourceRaw.length>0;
-      const channel=(!hasUtm||utmSourceRaw.startsWith("FBAds"))?"trafego":"organico";
+      const channel=tempRaw
+        ? (tempRaw==="Orgânico"?"organico":"trafego")
+        : ((!hasUtm||utmSourceRaw.startsWith("FBAds"))?"trafego":"organico");
 
       leadsRows.push({
         date,ms,
