@@ -207,7 +207,9 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
    e o fetch da(s) aba(s) em loadData(). Detalhe técnico a lembrar se isso
    acontecer: o endpoint gviz do Google NÃO retorna erro pra aba inexistente
    — ele silenciosamente devolve a primeira aba da planilha — então sempre
-   conferir o nome exato da aba na planilha antes de reativar.
+   conferir o nome exato da aba na planilha antes de reativar. Foi exatamente
+   isso que aconteceu com o Lembrete (14/08/26): o nome real da aba é "Base
+   Meta - Lembrete" (L maiúsculo), não "lembrete" — corrigido.
 
    Metas atualizadas conforme o "Resumo consolidado" combinado com o usuário
    — 09/08/26 (ver texto "ORA Jul26" usado como referência de metas/formato).
@@ -217,7 +219,7 @@ input[type=date]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer;fi
 const SHEET_ID = "1owUIVlpUKrT2dyh-gsiMvtA2yxuKpd_ddaW-aBp3LcQ";
 const SHEET_META_NAME = "Base Meta - Captação";
 const SHEET_LEADS_NAME = "Base lead";
-const SHEET_LEMBRETE_NAME = "Base Meta - lembrete";
+const SHEET_LEMBRETE_NAME = "Base Meta - Lembrete";
 // Dados de página (GA4) — usados pra Connect Rate e Tx conv Pg cadastro na
 // aba Métricas do Tráfego e no Resumo diário.
 const SHEET_GA4_NAME = "Base GA4";
