@@ -2357,7 +2357,7 @@ ${textBlock("Hoje",hoje,fDateBR(today),ch_,planForDate(today),null,true)}`;
       </div>
     </div>
 
-    ${stageResumoSection("🔔 Resumo Lembrete",`dados carregados: ${S.lembreteRows.length} linha(s)`,lembreteResumoHtml(),"lembrete")}
+    ${stageResumoSection("🔔 Resumo Lembrete",`dados carregados: ${S.lembreteRows.length} linha(s)`,lembreteResumoHtml(),"lembrete",lembreteResumoText())}
 
     <div class="foot">ORA · Captação · dados locais (CSV embutido)</div>`;
   el._resumoText=resumoText;
@@ -2367,9 +2367,9 @@ ${textBlock("Hoje",hoje,fDateBR(today),ch_,planForDate(today),null,true)}`;
 // seu próprio botão "Copiar resumo" (independente do da Captação e dos das
 // outras etapas), pra poder ir em cada etapa e enviar o resumo separado, na
 // hora que quiser.
-function stageResumoSection(title,subtitle,bodyHtml,scopeKey){
+function stageResumoSection(title,subtitle,bodyHtml,scopeKey,previewText){
   return `<div style="margin-top:28px;padding-top:22px;border-top:1px solid var(--border)">
-    <div class="hdr" style="margin-bottom:14px">
+    <div class="hdr" style="margin-bottom:16px">
       <div>
         <div class="hdr-title" style="font-size:16px">${title}</div>
         <div class="hdr-sub">${subtitle}</div>
@@ -2378,7 +2378,12 @@ function stageResumoSection(title,subtitle,bodyHtml,scopeKey){
         📋 Copiar resumo
       </button>
     </div>
-    ${bodyHtml}
+    <div style="display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start">
+      <div>${bodyHtml}</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;position:sticky;top:70px">
+        <pre style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);white-space:pre-wrap;line-height:1.8;margin:0;user-select:all">${(previewText||"").replace(/&/g,"&amp;").replace(/</g,"&lt;")}</pre>
+      </div>
+    </div>
   </div>`;
 }
 function setManualSpendHoje(v){
@@ -3491,26 +3496,20 @@ function lembreteResumoHtml(){
   const freq=alcance>0?m.impressions/alcance:null;
   const dates=rows.map(r=>r.date).sort();
   const first=dates[0]||null;
-  const leadsAoVivo=S.leadsRows.length;
-  const likesRows=lembreteLikesRows(leadsAoVivo).map(r=>({label:`${fDateBR(r.date)}${r.diasFaltam!=null?` (faltam ${r.diasFaltam}d)`:""}`,likes:r.likes,fatorX:r.fatorX,meta:r.meta}));
   return `
-    <div style="font-size:11px;color:var(--hint);margin-bottom:12px">Benchmark: ofrr_out25 · ${first?fDateBR(first):"—"} → ${fDateBR(todayISO())}</div>
-    ${stageResumoCard("👍 Likes na aula01 (checkpoint 12:00, vs. fator X × leads ao vivo)",
-      likesBenchmarkTableHtml(likesRows,"Dia")
-    )}
+    <div style="font-size:11px;color:var(--hint);margin-bottom:12px">${first?fDateBR(first):"—"} a ${fDateBR(todayISO())}</div>
     ${stageResumoCard("Total",
       stageRow("Investido total",fBRL(m.spend),"","")+
       stageRow("Cliques totais",m.clicks.toLocaleString("pt-BR"),"","")+
-      stageRow("CPC total",m.cpc!=null?fBRL(m.cpc):"—",`Meta: ${fBRL(LEMBRETE_METAS.cpc.val)}`,metaEmojiGlobal(m.cpc,LEMBRETE_METAS.cpc.val,LEMBRETE_METAS.cpc.higher))
+      stageRow("CPC total",m.cpc!=null?fBRL(m.cpc):"—","","")
     )}
     ${stageResumoCard("Facebook",
       stageRow("Investimento",fBRL(m.spend),"","")+
       stageRow("Link clicks",m.clicks.toLocaleString("pt-BR"),"","")+
-      stageRow("CPC no link",m.cpc!=null?fBRL(m.cpc):"—",`Meta: ${fBRL(LEMBRETE_METAS.cpc.val)}`,metaEmojiGlobal(m.cpc,LEMBRETE_METAS.cpc.val,LEMBRETE_METAS.cpc.higher))+
+      stageRow("CPC no link",m.cpc!=null?fBRL(m.cpc):"—","","")+
       stageManualRow("manual-alcance-lembrete","Alcance",alcance,`setManualAlcance('lembrete',this.value)`,"manual 🔧 (API não fornece)","")+
-      stageRow("Frequência",freq!=null?freq.toFixed(2).replace(".",","):"—",`Meta: ${LEMBRETE_METAS.frequencia.val}`,freq!=null?metaEmojiGlobal(freq,LEMBRETE_METAS.frequencia.val,LEMBRETE_METAS.frequencia.higher):"⚪")
-    )}
-    <div style="font-size:10px;color:var(--hint);max-width:640px">Total e Facebook mostram os mesmos números — esta base só tem uma fonte de tráfego (Meta Ads). Metas fixas do benchmark ofrr_out25 (não é uma curva dia-a-dia, por falta do histórico diário completo desse benchmark).</div>`;
+      stageRow("Frequência",freq!=null?freq.toFixed(2).replace(".",","):"—","","")
+    )}`;
 }
 function lembreteResumoText(){
   const rows=S.lembreteRows;
@@ -3519,25 +3518,21 @@ function lembreteResumoText(){
   const freq=alcance>0?m.impressions/alcance:null;
   const dates=rows.map(r=>r.date).sort();
   const first=dates[0]||null;
-  const leadsAoVivo=S.leadsRows.length;
-  const likesRows=lembreteLikesRows(leadsAoVivo).map(r=>({label:`${fDateBR(r.date)}${r.diasFaltam!=null?` (faltam ${r.diasFaltam}d)`:""}`,likes:r.likes,fatorX:r.fatorX,meta:r.meta}));
   return `*ORA ago/26 - Resumo Lembrete*
-Benchmark: ofrr_out25 · ${first?fDateBR(first):"—"} → ${fDateBR(todayISO())}
-
-*Likes na aula01 (checkpoint 12:00, vs. fator X × leads ao vivo)*
-${likesBenchmarkTableText(likesRows,"Dia")}
+_${first?fDateBR(first):"—"}_ a _${fDateBR(todayISO())}_
 
 *Total*
 Investido total:\t${fBRL(m.spend)}
 Cliques totais:\t${m.clicks.toLocaleString("pt-BR")}
-CPC total:\t${m.cpc!=null?fBRL(m.cpc):"—"}\t${metaEmojiGlobal(m.cpc,LEMBRETE_METAS.cpc.val,LEMBRETE_METAS.cpc.higher)} (🎯: ${fBRL(LEMBRETE_METAS.cpc.val)})
+CPC total:\t${m.cpc!=null?fBRL(m.cpc):"—"}
 
 *Facebook*
 Investimento:\t${fBRL(m.spend)}
 Link clicks:\t${m.clicks.toLocaleString("pt-BR")}
-CPC no link:\t${m.cpc!=null?fBRL(m.cpc):"—"}\t${metaEmojiGlobal(m.cpc,LEMBRETE_METAS.cpc.val,LEMBRETE_METAS.cpc.higher)} (🎯: ${fBRL(LEMBRETE_METAS.cpc.val)})
-Alcance:\t${alcance?alcance.toLocaleString("pt-BR"):"—"}\t(manual — API não fornece)
-Frequência:\t${freq!=null?freq.toFixed(2).replace(".",","):"—"}\t${freq!=null?metaEmojiGlobal(freq,LEMBRETE_METAS.frequencia.val,LEMBRETE_METAS.frequencia.higher):"⚪"} (🎯: ${LEMBRETE_METAS.frequencia.val})`;
+CPC no link:\t${m.cpc!=null?fBRL(m.cpc):"—"}
+
+Alcance:\t${alcance?alcance.toLocaleString("pt-BR"):"—"}
+Frequência:\t${freq!=null?freq.toFixed(2).replace(".",","):"—"}`;
 }
 // Cada aula é identificada pelo NOME DA CAMPANHA (via aulaNumberFromCampaign)
 // — não por uma coluna própria, já que a Base Meta - Aulas mistura as 3
