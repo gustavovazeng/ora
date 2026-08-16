@@ -619,11 +619,16 @@ function campaignStage(campName){
 // linhas da Base Meta cuja campanha pertence àquela etapa (via
 // campaignStage), não o gasto do dia inteiro.
 function stageSpendForDate(stage,date){
+  // Lembrete vive numa aba própria da planilha (Base Meta - Lembrete),
+  // separada da Base Meta - Captação — não passa pelo campaignStage() porque
+  // já é 100% dela, então soma direto de S.lembreteRows.
+  if(stage==="Lembrete")return S.lembreteRows.filter(r=>r.date===date).reduce((a,r)=>a+r.spend,0);
   return S.metaRows.filter(r=>r.date===date&&campaignStage(r.campName)===stage).reduce((a,r)=>a+r.spend,0);
 }
 // Investimento realizado total de uma etapa (todas as datas) — usado no
 // "Resumo por etapa" do Planejado/Realizado.
 function totalSpendForStage(stage){
+  if(stage==="Lembrete")return S.lembreteRows.reduce((a,r)=>a+r.spend,0);
   return S.metaRows.filter(r=>campaignStage(r.campName)===stage).reduce((a,r)=>a+r.spend,0);
 }
 
